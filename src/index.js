@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import connectionDB from "../config/connectDb.js";
 dotenv.config();
 
 const app = express();
@@ -27,6 +28,19 @@ app.use("/", bookRouter);
 app.use("/", transactionRouter);
 const port = process.env.PORT || 8001;
 
-app.listen(port, () => {
-  console.log("Server is running on ", port);
-});
+const startServer = async () => {
+  try {
+    // Wait for MongoDB to connect first
+    await connectionDB;
+    console.log("✅ MongoDB connected. Starting server...");
+
+    app.listen(process.env.PORT, () => {
+      console.log(`🚀 Server running on port ${process.env.PORT}`);
+    });
+  } catch (error) {
+    console.error("❌ Failed to connect to database:", error);
+    process.exit(1); // stop the app if DB fails
+  }
+};
+
+startServer();
