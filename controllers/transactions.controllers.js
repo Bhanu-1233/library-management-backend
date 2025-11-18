@@ -156,49 +156,45 @@ const returnBook = async (req, res) => {
   }
 };
 
-const getBooks = async (req, res) => {
+const buyBook = async (req, res) => {
   try {
-    let books = [];
-    let borrowedCount = 0;
-    let totalEarnings = 0;
+    const { user_id, book_id } = req.body;
 
-    if (req.user.role === "author") {
-      books = await Book.find({ author: req.user._id });
-      const bookIds = books.map((b) => b._id);
+    // ✅ 1. Validate user
+    const user = await User.findById(user_id);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-      // ✅ Count borrowed books
-      borrowedCount = await Transaction.countDocuments({
-        book_id: { $in: bookIds },
-        returned: false,
-      });
+    // ✅ 2. Validate book
+    const book = await Book.findById(book_id).populate("author");
+    if (!book) return res.status(404).json({ message: "Book not found" });
 
-      // ✅ Calculate total earnings (sum of all successful purchases)
-      const purchases = await BookPurchase.find({
-        book_id: { $in: bookIds },
-        paymentStatus: "success",
-      });
+    // ✅ 3. Validate author
+    const author = await User.findById(book.author._id);
+    if (!author) return res.status(404).json({ message: "Author not found" });
 
-      totalEarnings = purchases.reduce(
-        (sum, purchase) => sum + (purchase.price || 0),
-        0
-      );
+    // ✅ 4. Increase author earnings
+    author.earnings += book.price;
+    await author.save();
+
+    // ✅ 5. Reduce available copies
+    if (book.availableCopies > 0) {
+      book.availableCopies -= 1;
+      await book.save();
     }
 
-    const totalBooks = books.length;
-    const availableBooks = books.filter((b) => b.availableCopies > 0).length;
-
     res.status(200).json({
-      message: "Books fetched successfully",
-      books,
-      totalBooks,
-      availableBooks,
-      borrowedBooks: borrowedCount,
-      totalEarnings, // ✅ Added earnings field
+      message: `Book purchased successfully ✅`,
+      purchasedBook: {
+        name: book.name,
+        price: book.price,
+        author: author.fullname,
+      },
+      authorEarnings: author.earnings,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Something went wrong" });
+    console.error("Error processing book purchase:", error);
+    res.status(500).json({ message: "Something went wrong while buying book" });
   }
 };
 
-export { borrowBook, returnBook, getBooks };
+export { borrowBook, returnBook, buyBook };

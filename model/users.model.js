@@ -52,6 +52,10 @@ const UserSchema = mongoose.Schema(
     resetpasswordOTPexpiry: {
       type: Date,
     },
+    earnings: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

@@ -2,6 +2,7 @@ import { Book } from "../model/books.model.js";
 import User from "../model/users.model.js";
 import { bookRouter } from "../routes/book.routes.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { Transaction } from "../model/transactions.model.js";
 import nodemailer from "nodemailer";
 const transporter = nodemailer.createTransport({
   secure: true,
@@ -49,19 +50,37 @@ const createBook = async (req, res) => {
 
 const getBooks = async (req, res) => {
   try {
-    let books;
-    console.log("req obj", req);
-
-    if (req.user.role === "author") {
-      books = await Book.find({ author: req.user._id });
+    if (req.user.role !== "author") {
+      return res.status(403).json({ message: "Access denied. Authors only." });
     }
 
-    res
-      .status(200)
-      .json({ message: " books fetched successfully", books: books });
+    // ✅ Fetch all books by this author
+    const books = await Book.find({ author: req.user._id });
+
+    // ✅ Count how many of their books are currently borrowed
+    const borrowedCount = await Transaction.countDocuments({
+      book_id: { $in: books.map((b) => b._id) },
+      returned: false,
+    });
+
+    // ✅ Fetch author earnings
+    const author = await User.findById(req.user._id).select("earnings");
+
+    // ✅ Calculate stats
+    const totalBooks = books.length;
+    const availableBooks = books.filter((b) => b.availableCopies > 0).length;
+
+    res.status(200).json({
+      message: "Books fetched successfully 📚",
+      books,
+      totalBooks,
+      availableBooks,
+      borrowedBooks: borrowedCount,
+      earnings: author?.earnings || 0,
+    });
   } catch (error) {
-    console.log(error);
-    res.status(401).json("Some thing went wrong");
+    console.error("❌ Error fetching author books:", error);
+    res.status(500).json({ message: "Server error while fetching books" });
   }
 };
 

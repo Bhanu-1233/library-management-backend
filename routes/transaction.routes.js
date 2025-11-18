@@ -2,7 +2,7 @@ import express from "express";
 import {
   borrowBook,
   returnBook,
-  getBooks,
+  buyBook,
 } from "../controllers/transactions.controllers.js";
 import { verifyToken } from "../middlewares/auth.middlewares.js";
 
@@ -10,5 +10,6 @@ const transactionRouter = express.Router();
 
 transactionRouter.post("/borrow", verifyToken, borrowBook);
 transactionRouter.post("/return", verifyToken, returnBook);
-transactionRouter.get("/books", verifyToken, getBooks);
+
+transactionRouter.post("/buybook", verifyToken, buyBook);
 export { transactionRouter };

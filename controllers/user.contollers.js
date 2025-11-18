@@ -13,6 +13,7 @@ import {
 import cookieParser from "cookie-parser";
 import { Book } from "../model/books.model.js";
 import { Transaction } from "../model/transactions.model.js";
+import { Payment } from "../model/Payment.model.js";
 
 const register = async (req, res) => {
   try {
@@ -260,17 +261,54 @@ const deleteUser = async (req, res) => {
   }
 };
 
+// controllers/book.controller.js
+
+// controllers/book.controller.js
+
 const getAllBooks = async (req, res) => {
   try {
-    const books = await Book.find().populate("author", "fullname email");
+    // ✅ Pagination (default: page 1, 8 per page)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 8;
+    const skip = (page - 1) * limit;
+
+    // ✅ Optional search (case-insensitive)
+    const search = req.query.search?.trim() || "";
+    const searchRegex = new RegExp(search, "i");
+
+    // ✅ Filter by search query
+    const filter = {
+      $or: [
+        { name: searchRegex },
+        { genre: searchRegex },
+        { description: searchRegex },
+      ],
+    };
+
+    // ✅ Fetch filtered books with pagination
+    const [books, totalBooks] = await Promise.all([
+      Book.find(filter)
+        .populate("author", "fullname email")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Book.countDocuments(filter),
+    ]);
+
+    const totalPages = Math.ceil(totalBooks / limit);
+    const hasMore = page < totalPages; // ✅ Easy flag for frontend
 
     res.status(200).json({
-      message: "Books fetched successfully",
-      books: books,
+      message: "Books fetched successfully 📚",
+      books,
+      totalBooks,
+      totalPages,
+      currentPage: page,
+      hasMore, // 👈 Added for simpler frontend logic
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json("Server error");
+    console.error("❌ Error fetching books:", error);
+    res.status(500).json({ message: "Server error while fetching books" });
   }
 };
 
@@ -283,7 +321,7 @@ const listOfBorrwedBooks = async (req, res) => {
     })
       .populate({
         path: "book_id",
-        select: "name genre price author thumbnailphoto",
+        select: "name genre price author thumbnailphoto description",
         populate: {
           path: "author", // author is also a User reference
           select: "fullname email",
@@ -291,6 +329,7 @@ const listOfBorrwedBooks = async (req, res) => {
       })
       .populate("user_id", "fullname email"); // borrower details
     const numberOfBooks = borrowed.length;
+    console.log("borrowed books", borrowed);
 
     res.status(200).json({
       message: "Your Borrowed Books",
@@ -467,6 +506,57 @@ const changePassword = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+const getUserPurchases = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const purchases = await Payment.find({ user: userId })
+      .populate({
+        path: "book",
+        select: "name price genre thumbnailphoto author",
+        populate: { path: "author", select: "fullname" },
+      })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Your purchased books fetched successfully 🛍️",
+      purchases,
+    });
+  } catch (error) {
+    console.error("Error fetching purchases:", error);
+    res.status(500).json({ message: "Server error fetching purchases" });
+  }
+};
+const getAuthorSales = async (req, res) => {
+  try {
+    if (req.user.role !== "author")
+      return res.status(403).json({ message: "Access denied" });
+
+    const sales = await Payment.find({ author: req.user._id })
+      .populate({
+        path: "book",
+        select: "name price thumbnailphoto",
+      })
+      .populate({
+        path: "user",
+        select: "fullname email",
+      })
+      .sort({ createdAt: -1 });
+
+    const totalSales = sales.length;
+    const totalEarnings = sales.reduce((sum, s) => sum + s.amount, 0);
+
+    res.status(200).json({
+      message: "Sales data fetched successfully 💸",
+      totalSales,
+      totalEarnings,
+      sales,
+    });
+  } catch (error) {
+    console.error("Error fetching sales:", error);
+    res.status(500).json({ message: "Server error fetching sales" });
+  }
+};
 
 export {
   register,
@@ -484,4 +574,6 @@ export {
   verifyOTP,
   resetPassword,
   changePassword,
+  getUserPurchases,
+  getAuthorSales,
 };

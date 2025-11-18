@@ -15,6 +15,8 @@ import {
   verifyOTP,
   resetPassword,
   changePassword,
+  getUserPurchases,
+  getAuthorSales,
 } from "../controllers/user.contollers.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { upload } from "../middlewares/multer.middlewares.js";
@@ -42,5 +44,7 @@ userRouter.put("/change-password", verifyToken, changePassword);
 userRouter.post("/auth/forgot-password", forgotPassword);
 userRouter.post("/auth/verify-otp", verifyOTP);
 userRouter.post("/auth/reset-password", resetPassword);
+userRouter.get("/mypurchases", verifyToken, getUserPurchases);
+userRouter.get("/mysales", verifyToken, getAuthorSales);
 
 export { userRouter };

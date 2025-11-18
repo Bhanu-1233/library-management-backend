@@ -25,10 +25,12 @@ app.use(
 import { userRouter } from "../routes/user.routes.js";
 import { bookRouter } from "../routes/book.routes.js";
 import { transactionRouter } from "../routes/transaction.routes.js";
+import paymentRouter from "../routes/payment.routes.js";
 
 app.use("/", userRouter);
 app.use("/", bookRouter);
 app.use("/", transactionRouter);
+app.use("/", paymentRouter);
 
 const startServer = async () => {
   try {
