@@ -10,22 +10,20 @@ dotenv.config();
 // 📧 FIXED — Gmail App Password Working on Render
 // ================================================================
 const transporter = nodemailer.createTransport({
-  // Use explicit settings instead of the 'service: "gmail"' shorthand
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // For Port 587, set to false (uses STARTTLS)
+  host: process.env.BREVO_HOST || "smtp-relay.brevo.com",
+  port: process.env.BREVO_PORT || 587,
+  secure: false, // IMPORTANT: always false for port 587
   auth: {
-    user: process.env.EMAIL_USER, // your Gmail address
-    pass: process.env.EMAIL_PASS, // your 16-digit Gmail App Password
+    user: process.env.BREVO_LOGIN, // your Brevo SMTP login
+    pass: process.env.BREVO_SMTP_KEY, // your SMTP key
   },
-  // Optional: Add a connection timeout value for robust logging/debugging
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 5000, // 5 seconds
+  connectionTimeout: 10000,
+  greetingTimeout: 5000,
 });
 
 transporter.verify((error, success) => {
-  if (error) console.log("Mail transport error ❌:", error);
-  else console.log("Mail server ready ✅");
+  if (error) console.log("Brevo mail transport error ❌:", error);
+  else console.log("Brevo mail server ready ✅");
 });
 
 // ================================================================
@@ -77,7 +75,7 @@ const borrowBook = async (req, res) => {
 
     // 📧 Send Borrow Email
     await transporter.sendMail({
-      from: `"Libraverse 📚" <${process.env.EMAIL_USER}>`,
+      from: `"Libraverse" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: `You Borrowed "${book.name}"`,
       html: `

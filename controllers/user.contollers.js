@@ -298,6 +298,8 @@ const getAllBooks = async (req, res) => {
     const totalPages = Math.ceil(totalBooks / limit);
     const hasMore = page < totalPages; // ✅ Easy flag for frontend
 
+    console.log("books", books);
+
     res.status(200).json({
       message: "Books fetched successfully 📚",
       books,
@@ -369,17 +371,20 @@ const listOfReturnedBooks = async (req, res) => {
 };
 
 const transporter = nodemailer.createTransport({
-  // Use explicit settings instead of the 'service: "gmail"' shorthand
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false, // For Port 587, set to false (uses STARTTLS)
+  host: process.env.BREVO_HOST || "smtp-relay.brevo.com",
+  port: process.env.BREVO_PORT || 587,
+  secure: false, // IMPORTANT: always false for port 587
   auth: {
-    user: process.env.EMAIL_USER, // your Gmail address
-    pass: process.env.EMAIL_PASS, // your 16-digit Gmail App Password
+    user: process.env.BREVO_LOGIN, // your Brevo SMTP login
+    pass: process.env.BREVO_SMTP_KEY, // your SMTP key
   },
-  // Optional: Add a connection timeout value for robust logging/debugging
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 5000, // 5 seconds
+  connectionTimeout: 10000,
+  greetingTimeout: 5000,
+});
+
+transporter.verify((error, success) => {
+  if (error) console.log("Brevo mail transport error ❌:", error);
+  else console.log("Brevo mail server ready ✅");
 });
 
 //sending otp to mail
