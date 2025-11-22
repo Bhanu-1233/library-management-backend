@@ -1,7 +1,8 @@
 // import User from "../../model/users.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
+
+import crypto from "crypto";
 
 import User from "../model/users.model.js";
 
@@ -10,7 +11,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
 } from "../utils/generateToken.js";
-import cookieParser from "cookie-parser";
+
 import { Book } from "../model/books.model.js";
 import { Transaction } from "../model/transactions.model.js";
 import { Payment } from "../model/Payment.model.js";
@@ -261,10 +262,6 @@ const deleteUser = async (req, res) => {
   }
 };
 
-// controllers/book.controller.js
-
-// controllers/book.controller.js
-
 const getAllBooks = async (req, res) => {
   try {
     // ✅ Pagination (default: page 1, 8 per page)
@@ -370,24 +367,22 @@ const listOfReturnedBooks = async (req, res) => {
   }
 };
 
-const transporter = nodemailer.createTransport({
-  host: process.env.BREVO_HOST || "smtp-relay.brevo.com",
-  port: process.env.BREVO_PORT || 587,
-  secure: false, // IMPORTANT: always false for port 587
-  auth: {
-    user: process.env.BREVO_LOGIN, // your Brevo SMTP login
-    pass: process.env.BREVO_SMTP_KEY, // your SMTP key
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 5000,
-});
+// const transporter = nodemailer.createTransport({
+//   host: process.env.BREVO_HOST || "smtp-relay.brevo.com",
+//   port: process.env.BREVO_PORT || 587,
+//   secure: false, // IMPORTANT: always false for port 587
+//   auth: {
+//     user: process.env.BREVO_LOGIN, // your Brevo SMTP login
+//     pass: process.env.BREVO_SMTP_KEY, // your SMTP key
+//   },
+//   connectionTimeout: 10000,
+//   greetingTimeout: 5000,
+// });
 
-transporter.verify((error, success) => {
-  if (error) console.log("Brevo mail transport error ❌:", error);
-  else console.log("Brevo mail server ready ✅");
-});
-
-//sending otp to mail
+// transporter.verify((error, success) => {
+//   if (error) console.log("Brevo mail transport error ❌:", error);
+//   else console.log("Brevo mail server ready ✅");
+// });
 
 const forgotPassword = async (req, res) => {
   try {
@@ -396,96 +391,49 @@ const forgotPassword = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Generate OTP (6 digits)
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    user.resetpasswordOTP = otp;
-    user.resetpasswordOTPexpiry = Date.now() + 10 * 60 * 1000; // 10 mins
+    // Generate secure password reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    user.resetpasswordOTP = resetToken;
+    user.resetpasswordOTPexpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
     await user.save();
 
-    // Send email
-    await transporter.sendMail({
-      from: `"Libraverse 📚" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: "Password Reset OTP - Libraverse",
-      html: `
-        <div style="font-family: sans-serif; line-height: 1.6;">
-          <h2 style="color: #2563eb;">Hello ${user.fullname},</h2>
-          <p>You requested to reset your password. Use the OTP below:</p>
-          <h1 style="color: #16a34a; font-size: 28px;">${otp}</h1>
-          <p>This OTP will expire in 10 minutes.</p>
-          <br/>
-          <p>If you did not request this, please ignore this email.</p>
-          <p>— Team Libraverse 📚</p>
-        </div>
-      `,
-    });
-
-    res.status(200).json({ message: "OTP sent successfully ✅" });
-  } catch (error) {
-    console.error("Error sending OTP:", error);
-    res.status(500).json({ message: "Failed to send OTP" });
-  }
-};
-
-// =============================
-// 2️⃣ Verify OTP (Generate reset token)
-// =============================
-const verifyOTP = async (req, res) => {
-  try {
-    const { email, otp } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user) return res.status(404).json({ message: "User not found" });
-    if (!user.resetpasswordOTP || !user.resetpasswordOTPexpiry)
-      return res.status(400).json({ message: "No OTP found. Try again." });
-
-    if (user.resetpasswordOTP !== otp)
-      return res.status(400).json({ message: "Invalid OTP" });
-
-    if (user.resetpasswordOTPexpiry < Date.now())
-      return res.status(400).json({ message: "OTP expired" });
-
-    // OTP verified → generate short-lived token
-    const resetToken = jwt.sign({ email: user.email }, process.env.JWT_SECRET, {
-      expiresIn: "10m",
-    });
-
-    // Clean up OTP (optional)
-    user.resetpasswordOTP = null;
-    user.resetpasswordOTPexpiry = null;
-    await user.save();
-
+    // Send token back to frontend (no email)
     res.status(200).json({
-      message: "OTP verified successfully 🎉",
-      resetToken,
+      message: "Reset link generated",
+      token: resetToken,
     });
   } catch (error) {
-    console.error("Error verifying OTP:", error);
-    res.status(500).json({ message: "Something went wrong" });
+    console.error("Error creating reset token:", error);
+    res.status(500).json({ message: "Failed to generate reset link" });
   }
 };
 
-// =============================
-// 3️⃣ Reset Password
-// =============================
 const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ email: decoded.email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const user = await User.findOne({
+      resetpasswordOTP: token,
+      resetpasswordOTPexpiry: { $gt: Date.now() },
+    });
 
-    // Update password
+    if (!user)
+      return res.status(400).json({ message: "Invalid or expired token" });
+
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
+
+    user.resetpasswordOTP = null;
+    user.resetpasswordOTPexpiry = null;
+
     await user.save();
 
-    res.status(200).json({ message: "Password reset successful 🎉" });
+    res.status(200).json({
+      message: "Password reset successful 🎉",
+    });
   } catch (error) {
-    console.error("Error resetting password:", error);
-    res.status(500).json({ message: "Something went wrong while resetting" });
+    res.status(500).json({ message: "Something went wrong" });
   }
 };
 
@@ -580,7 +528,6 @@ export {
   listOfBorrwedBooks,
   listOfReturnedBooks,
   forgotPassword,
-  verifyOTP,
   resetPassword,
   changePassword,
   getUserPurchases,

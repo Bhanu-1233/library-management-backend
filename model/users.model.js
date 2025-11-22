@@ -45,12 +45,15 @@ const UserSchema = mongoose.Schema(
     },
     Refreshtoken: {
       type: String,
+      default: null,
     },
     resetpasswordOTP: {
       type: String,
+      default: null,
     },
     resetpasswordOTPexpiry: {
       type: Date,
+      default: null,
     },
     earnings: {
       type: Number,

@@ -9,22 +9,13 @@ dotenv.config();
 // ================================================================
 // 📧 FIXED — Gmail App Password Working on Render
 // ================================================================
-const transporter = nodemailer.createTransport({
-  host: process.env.BREVO_HOST || "smtp-relay.brevo.com",
-  port: process.env.BREVO_PORT || 587,
-  secure: false, // IMPORTANT: always false for port 587
-  auth: {
-    user: process.env.BREVO_LOGIN, // your Brevo SMTP login
-    pass: process.env.BREVO_SMTP_KEY, // your SMTP key
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 5000,
-});
-
-transporter.verify((error, success) => {
-  if (error) console.log("Brevo mail transport error ❌:", error);
-  else console.log("Brevo mail server ready ✅");
-});
+// const transporter = nodemailer.createTransport({
+//   service: "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASS,
+//   },
+// });
 
 // ================================================================
 // 📘 Borrow Book Controller
@@ -74,24 +65,24 @@ const borrowBook = async (req, res) => {
       });
 
     // 📧 Send Borrow Email
-    await transporter.sendMail({
-      from: `"Libraverse" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject: `You Borrowed "${book.name}"`,
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
-          <h2 style="color:#2563eb;">Hello ${user.fullname},</h2>
-          <p>You have successfully borrowed <strong>${book.name}</strong> by ${
-        book.author.fullname
-      }.</p>
-          <p><strong>Issued On:</strong> ${issuedAt.toDateString()}<br/>
-             <strong>Return By:</strong> ${returnAt.toDateString()}</p>
-          <p>Happy reading! Remember to return the book on time 😊</p>
-          <br/>
-          <p>– Team <strong>Libraverse.</strong></p>
-        </div>
-      `,
-    });
+    // await transporter.sendMail({
+    //   from: `"Libraverse" <${process.env.EMAIL_USER}>`,
+    //   to: user.email,
+    //   subject: `You Borrowed "${book.name}"`,
+    //   html: `
+    //     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+    //       <h2 style="color:#2563eb;">Hello ${user.fullname},</h2>
+    //       <p>You have successfully borrowed <strong>${book.name}</strong> by ${
+    //     book.author.fullname
+    //   }.</p>
+    //       <p><strong>Issued On:</strong> ${issuedAt.toDateString()}<br/>
+    //          <strong>Return By:</strong> ${returnAt.toDateString()}</p>
+    //       <p>Happy reading! Remember to return the book on time 😊</p>
+    //       <br/>
+    //       <p>– Team <strong>Libraverse.</strong></p>
+    //     </div>
+    //   `,
+    // });
 
     res.status(201).json({
       message: "Book borrowed successfully 📚",
@@ -129,21 +120,21 @@ const returnBook = async (req, res) => {
     }
 
     // 📧 Send Return Email
-    await transporter.sendMail({
-      from: `"Libraverse" <${process.env.EMAIL_USER}>`,
-      to: transaction.user_id.email,
-      subject: `Book Returned: "${book.name}"`,
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
-          <h2 style="color:#15803d;">Hi ${transaction.user_id.fullname},</h2>
-          <p>Thank you for returning <strong>${book.name}</strong>.</p>
-          <p><strong>Returned On:</strong> ${transaction.returnedAt.toDateString()}</p>
-          <p>We hope you enjoyed reading. Feel free to borrow again anytime!</p>
-          <br/>
-          <p>– Team <strong>Libraverse.</strong></p>
-        </div>
-      `,
-    });
+    // await transporter.sendMail({
+    //   from: `"Libraverse" <${process.env.EMAIL_USER}>`,
+    //   to: transaction.user_id.email,
+    //   subject: `Book Returned: "${book.name}"`,
+    //   html: `
+    //     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#333;">
+    //       <h2 style="color:#15803d;">Hi ${transaction.user_id.fullname},</h2>
+    //       <p>Thank you for returning <strong>${book.name}</strong>.</p>
+    //       <p><strong>Returned On:</strong> ${transaction.returnedAt.toDateString()}</p>
+    //       <p>We hope you enjoyed reading. Feel free to borrow again anytime!</p>
+    //       <br/>
+    //       <p>– Team <strong>Libraverse.</strong></p>
+    //     </div>
+    //   `,
+    // });
 
     res.status(200).json({
       message: "Book returned successfully ✅",

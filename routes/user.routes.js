@@ -12,7 +12,6 @@ import {
   listOfBorrwedBooks,
   listOfReturnedBooks,
   forgotPassword,
-  verifyOTP,
   resetPassword,
   changePassword,
   getUserPurchases,
@@ -39,11 +38,11 @@ userRouter.delete("/delete", deleteUser);
 userRouter.get("/allbooks", getAllBooks);
 userRouter.get("/user/borrowed/books", verifyToken, listOfBorrwedBooks);
 userRouter.get("/user/returned/books", verifyToken, listOfReturnedBooks);
-
 userRouter.put("/change-password", verifyToken, changePassword);
-userRouter.post("/auth/forgot-password", forgotPassword);
-userRouter.post("/auth/verify-otp", verifyOTP);
-userRouter.post("/auth/reset-password", resetPassword);
+userRouter.post("/forgot-password", forgotPassword);
+
+userRouter.post("/reset-password", resetPassword);
+
 userRouter.get("/mypurchases", verifyToken, getUserPurchases);
 userRouter.get("/mysales", verifyToken, getAuthorSales);
 
