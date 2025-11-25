@@ -53,10 +53,11 @@ const register = async (req, res) => {
 
     const options = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: true,
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     };
+
     res.cookie("AccessToken", accessToken, options);
     res.cookie("RefreshToken", refreshToken, options);
 
@@ -94,7 +95,7 @@ const loginUser = async (req, res) => {
     }
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid User or Password" });
+      return res.status(401).json({ message: "Invalid Username or Password" });
     }
 
     const accessToken = generateAccessToken(user._id);
@@ -103,10 +104,11 @@ const loginUser = async (req, res) => {
     await user.save();
     const options = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: true,
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     };
+
     res.cookie("AccessToken", accessToken, options);
     res.cookie("RefreshToken", refreshToken, options);
     const userData = await User.findOne({ email }).select(
