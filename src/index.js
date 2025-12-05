@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import connectionDB from "../config/connectDb.js";
 
 dotenv.config();
-
+console.log("Has OpenAI key?", !!process.env.OPENAI_API_KEY);
 const app = express();
 app.use(morgan("dev"));
 app.use(express.json());

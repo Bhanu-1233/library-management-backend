@@ -6,7 +6,9 @@ import {
   deleteBook,
   bookdetails,
   searchBook,
+  getBookAiInsights,
 } from "../controllers/book.controllers.js";
+
 import { verifyToken } from "../middlewares/auth.middlewares.js";
 import isAuthor from "../middlewares/isauthor.middlewares.js";
 
@@ -23,6 +25,9 @@ bookRouter.post(
 );
 bookRouter.get("/books", verifyToken, getBooks);
 bookRouter.get("/book/:id", verifyToken, bookdetails);
+
+// 🔹 NEW: AI insights for a book
+bookRouter.get("/book/:id/ai-insights", verifyToken, getBookAiInsights);
 
 bookRouter.put(
   "/updatebook/:id",

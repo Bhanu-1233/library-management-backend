@@ -1,6 +1,6 @@
+import { generateBookInsights } from "../utils/aiClient.js";
 import { Book } from "../model/books.model.js";
 import User from "../model/users.model.js";
-import { bookRouter } from "../routes/book.routes.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { Transaction } from "../model/transactions.model.js";
 
@@ -10,12 +10,15 @@ const createBook = async (req, res) => {
     const { name, description, genre, availableCopies, price } = req.body;
     const file = req.file;
     let fileUrl = null;
+
     if (file) {
       // upload file to cloudinary
       const cloudinaryResponse = await uploadOnCloudinary(file.path);
       fileUrl = cloudinaryResponse.url;
     }
+
     const authorName = await User.findById(req.user.id);
+
     const book = await Book.create({
       name,
       description,
@@ -127,8 +130,6 @@ const updateBook = async (req, res) => {
       if (cloudinaryResponse && cloudinaryResponse.url) {
         book.thumbnailphoto = cloudinaryResponse.url;
       } else {
-        // If upload failed, you may choose to keep old image or return error.
-        // I'll return an error to be explicit:
         return res.status(500).json("Failed to upload thumbnail");
       }
     }
@@ -140,6 +141,7 @@ const updateBook = async (req, res) => {
     res.status(500).json("Server error");
   }
 };
+
 const deleteBook = async (req, res) => {
   try {
     const bookId = req.params.id;
@@ -154,6 +156,7 @@ const deleteBook = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 const searchBook = async (req, res) => {
   try {
     const query = req.query.query;
@@ -170,6 +173,55 @@ const searchBook = async (req, res) => {
   }
 };
 
+const getBookAiInsights = async (req, res) => {
+  try {
+    console.log("🔹 [AI] /book/:id/ai-insights hit. ID:", req.params.id);
+
+    if (!process.env.OPENAI_API_KEY) {
+      console.log("❌ [AI] Missing OPENAI_API_KEY");
+      return res.status(500).json({
+        message: "AI service is not configured. Missing OPENAI_API_KEY.",
+      });
+    }
+
+    const bookId = req.params.id;
+
+    const book = await Book.findById(bookId).populate("author", "fullname");
+
+    if (!book) {
+      console.log("❌ [AI] Book not found for ID:", bookId);
+      return res.status(404).json({ message: "Book not found" });
+    }
+
+    console.log("🔹 [AI] Generating insights for book:", book.name);
+
+    const insights = await generateBookInsights({
+      title: book.name,
+      description: book.description,
+      genre: book.genre,
+      author: book.author?.fullname,
+    });
+
+    console.log("✅ [AI] Insights generated");
+
+    return res.status(200).json({
+      message: "AI insights generated successfully",
+      insights,
+    });
+  } catch (error) {
+    console.error("❌ [AI] getBookAiInsights error:");
+    console.error("Message:", error?.message);
+    if (error?.response?.data) {
+      console.error("Response data:", error.response.data);
+    }
+
+    return res.status(500).json({
+      message: "Failed to generate AI insights",
+      error: error?.response?.data || error?.message || "Unknown error",
+    });
+  }
+};
+
 export {
   createBook,
   getBooks,
@@ -177,4 +229,5 @@ export {
   deleteBook,
   bookdetails,
   searchBook,
+  getBookAiInsights,
 };
