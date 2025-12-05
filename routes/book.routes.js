@@ -2,6 +2,7 @@ import express from "express";
 import {
   createBook,
   getBooks,
+  getAllBooksPaginated,
   updateBook,
   deleteBook,
   bookdetails,
@@ -14,6 +15,7 @@ import isAuthor from "../middlewares/isauthor.middlewares.js";
 
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { upload } from "../middlewares/multer.middlewares.js";
+
 const bookRouter = express.Router();
 
 bookRouter.post(
@@ -23,10 +25,16 @@ bookRouter.post(
   upload.single("thumbnail"),
   createBook
 );
+
+// Author-only books (for author dashboard)
 bookRouter.get("/books", verifyToken, getBooks);
+
+// 🔹 Public all-books endpoint (for Home page with pagination)
+bookRouter.get("/allbooks", getAllBooksPaginated);
+
 bookRouter.get("/book/:id", verifyToken, bookdetails);
 
-// 🔹 NEW: AI insights for a book
+// AI insights for a book
 bookRouter.get("/book/:id/ai-insights", verifyToken, getBookAiInsights);
 
 bookRouter.put(

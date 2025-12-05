@@ -41,25 +41,22 @@ const createBook = async (req, res) => {
   }
 };
 
+// 🔹 Author-only: get books created by this author (dashboard)
 const getBooks = async (req, res) => {
   try {
     if (req.user.role !== "author") {
       return res.status(403).json({ message: "Access denied. Authors only." });
     }
 
-    // ✅ Fetch all books by this author
     const books = await Book.find({ author: req.user._id });
 
-    // ✅ Count how many of their books are currently borrowed
     const borrowedCount = await Transaction.countDocuments({
       book_id: { $in: books.map((b) => b._id) },
       returned: false,
     });
 
-    // ✅ Fetch author earnings
     const author = await User.findById(req.user._id).select("earnings");
 
-    // ✅ Calculate stats
     const totalBooks = books.length;
     const availableBooks = books.filter((b) => b.availableCopies > 0).length;
 
@@ -73,6 +70,38 @@ const getBooks = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error fetching author books:", error);
+    res.status(500).json({ message: "Server error while fetching books" });
+  }
+};
+
+// 🔹 Public: get ALL books with pagination (for Home page)
+const getAllBooksPaginated = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page || "1", 10);
+    const limit = parseInt(req.query.limit || "8", 10);
+
+    const skip = (page - 1) * limit;
+
+    const [books, totalCount] = await Promise.all([
+      Book.find()
+        .populate("author", "fullname")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Book.countDocuments(),
+    ]);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    res.status(200).json({
+      message: "All books fetched successfully",
+      books,
+      totalPages,
+      currentPage: page,
+      totalCount,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching all books:", error);
     res.status(500).json({ message: "Server error while fetching books" });
   }
 };
@@ -101,7 +130,6 @@ const updateBook = async (req, res) => {
       return res.status(404).json("Book not Found");
     }
 
-    // ensure only the book owner (author) can update
     if (
       req.user.role === "author" &&
       book.author.toString() !== req.user._id.toString()
@@ -109,7 +137,6 @@ const updateBook = async (req, res) => {
       return res.status(401).json("Unauthorized Not your book");
     }
 
-    // Apply only the fields present in req.body (don't blindly overwrite thumbnail)
     const updatableFields = [
       "name",
       "genre",
@@ -124,7 +151,6 @@ const updateBook = async (req, res) => {
       }
     });
 
-    // If a file was uploaded, upload it to cloudinary and set thumbnailphoto
     if (req.file) {
       const cloudinaryResponse = await uploadOnCloudinary(req.file.path);
       if (cloudinaryResponse && cloudinaryResponse.url) {
@@ -160,7 +186,7 @@ const deleteBook = async (req, res) => {
 const searchBook = async (req, res) => {
   try {
     const query = req.query.query;
-    const regex = new RegExp(query, "i"); // case-insensitive
+    const regex = new RegExp(query, "i");
 
     const books = await Book.find({
       $or: [{ name: regex }, { genre: regex }, { description: regex }],
@@ -176,13 +202,6 @@ const searchBook = async (req, res) => {
 const getBookAiInsights = async (req, res) => {
   try {
     console.log("🔹 [AI] /book/:id/ai-insights hit. ID:", req.params.id);
-
-    if (!process.env.OPENAI_API_KEY) {
-      console.log("❌ [AI] Missing OPENAI_API_KEY");
-      return res.status(500).json({
-        message: "AI service is not configured. Missing OPENAI_API_KEY.",
-      });
-    }
 
     const bookId = req.params.id;
 
@@ -225,6 +244,7 @@ const getBookAiInsights = async (req, res) => {
 export {
   createBook,
   getBooks,
+  getAllBooksPaginated,
   updateBook,
   deleteBook,
   bookdetails,
